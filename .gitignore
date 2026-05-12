@@ -1,0 +1,12 @@
+model/vae_env/
+model/.venv/
+model/venv/
+model/env/
+analysis/data/raw_data/*.csv
+analysis/data/*.zip
+analysis/data/processed_data/*.csv
+analysis/stats/*
+analysis/figures/*
+analysis/renv/library/
+analysis/renv/staging/
+analysis/renv/python/
