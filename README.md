@@ -139,7 +139,7 @@ Runtimes are approximate and were tested on a MacBook Pro, 13-inch, M2, 2022, ru
 
 ### Installation
 
-The R analysis code was tested using R 4.3.0. The Python model code was tested using Python 3.12.
+The R analysis code was tested using R 4.3.0. The Python model code was tested using Python 3.12.3.
 
 Assuming R and Python are already installed, installing the R dependencies typically takes approximately 10 minutes, and installing the Python dependencies typically takes approximately 20 minutes.
 
