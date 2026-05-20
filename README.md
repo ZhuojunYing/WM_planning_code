@@ -10,7 +10,7 @@ The `analysis/` directory contains the R pipeline for cleaning behavioral and mo
 
 ### Model
 
-The `model/` directory contains the Python implementation of the variational recurrent neural network model, training loop, simulation code, and Python package requirements. The model entry point is `model/src/main.py`.
+The `model/` directory contains the Python implementation of the variational recurrent neural network model, training loop, simulation code, and Python package requirements.
 
 ## Repository Structure
 
@@ -122,7 +122,7 @@ tree-size-specific parameter scaler.
 Example:
 
 ```bash
-python model/src/main.py 1 1 model/weights model/simulations 120 1 7 train deep_depth
+python model/src/main.py 1 1 outputs/weights outputs/simulations 120 1 7 train deep_depth
 ```
 
 ## Outputs
@@ -177,9 +177,9 @@ source("analysis/scripts/stats/generate_stats.r")
 ```
 
 
-### Python model demo
+### Python model demo run
 
-The following demo is intended only to verify that the model code runs and produces simulation output. It is not intended to reproduce the manuscript model results. The Python model demo does not require an external input dataset; the model generates the simulated task data/output internally.
+This short demo checks that the Python model code runs successfully and writes simulation output. It is not intended to reproduce the manuscript model results.
 
 From the repository root, run:
 
@@ -193,7 +193,7 @@ Expected output:
 - trained model files written to `outputs/models/`;
 - simulation CSV files written to `outputs/simulations/`.
 
-Expected runtime for this demo is approximately 5 minutes.
+Expected runtime is approximately 5 minutes.
 
 ### Full Python model runtime
 
