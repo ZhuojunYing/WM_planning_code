@@ -9,3 +9,7 @@ for (script in figure_scripts) {
   message("Running ", script)
   source(here::here("analysis", "scripts", "figures", script))
 }
+
+sink("analysis/sessionInfo.txt")
+sessionInfo()
+sink()

@@ -511,3 +511,8 @@ df_exp1_model_rank_preregistered %>% filter(condition == "planning") %>% regress
 
 compare_adjacent_path_ranks(df_exp1_model_rank_preregistered %>% filter(condition == "planning"), y_var = "accuracy", folder_name = "exp1_model_preregistered_planning", mixed = FALSE, data_type = "model")
 df_exp1_model_preregistered %>% regress(reg_formula, reference_level = "planning", add_random = FALSE, mixed = FALSE, logistic = TRUE) %>% write_model_separate("exp1_model_preregistered") 
+
+
+sink("analysis/sessionInfo.txt")
+sessionInfo()
+sink()
