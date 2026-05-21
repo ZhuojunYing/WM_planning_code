@@ -1,6 +1,6 @@
 # Working Memory Planning Code
 
-This repository contains the analysis and computational modeling code for the working-memory planning manuscript.
+This repository contains the analysis and computational modeling code for Resource Rational Encoding of Reward Information During Planning.
 
 ## Overview
 
@@ -10,7 +10,7 @@ The `analysis/` directory contains the R pipeline for cleaning behavioral and mo
 
 ### Model
 
-The `model/` directory contains the Python implementation of the variational recurrent neural network model, training loop, simulation code, and Python package requirements. The model entry point is `model/src/main.py`.
+The `model/` directory contains the Python implementation of the variational recurrent neural network model, training loop, simulation code, and Python package requirements.
 
 ## Repository Structure
 
@@ -122,7 +122,7 @@ tree-size-specific parameter scaler.
 Example:
 
 ```bash
-python model/src/main.py 1 1 model/weights model/simulations 120 1 7 train deep_depth
+python model/src/main.py 1 1 outputs/weights outputs/simulations 120 1 7 train deep_depth
 ```
 
 ## Outputs
@@ -132,3 +132,69 @@ python model/src/main.py 1 1 model/weights model/simulations 120 1 7 train deep_
 - Statistical summaries: `analysis/stats/`
 - Model weights: the `<model_dir>` passed to `model/src/main.py`
 - Model simulations: the `<simulation_dir>` passed to `model/src/main.py`
+
+## Expected runtimes
+
+Runtimes are approximate and were tested on a MacBook Pro, 13-inch, M2, 2022, running macOS Monterey 12.4 with 8 GB memory. No non-standard hardware is required.
+
+### Installation
+
+The R analysis code was tested using R 4.3.0. The Python model code was tested using Python 3.12.3.
+
+Assuming R and Python are already installed, installing the R dependencies typically takes approximately 10 minutes, and installing the Python dependencies typically takes approximately 20 minutes.
+
+To install the R dependencies from the repository root, run:
+
+```r
+source("analysis/requirements.R")
+```
+
+To install the Python dependencies, run:
+
+```bash
+cd model
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+cd ..
+```
+
+### R analysis pipeline
+
+The de-identified raw data available on OSF serve as the real example dataset for running the R analysis pipeline. After the raw data have been downloaded from OSF and placed in `analysis/data/raw_data/`, the expected runtimes are:
+
+- Preprocessing: approximately 5 minutes.
+- Figure generation: approximately 10 minutes.
+- Statistical analyses: approximately 5 minutes.
+- Full R analysis pipeline: approximately 20 minutes.
+
+To run the full R analysis pipeline from the repository root, run:
+
+```r
+source("analysis/preprocessing/run_all_preprocessing.R")
+source("analysis/scripts/figures/run_all_figures.R")
+source("analysis/scripts/stats/generate_stats.r")
+```
+
+
+### Python model demo run
+
+This short demo checks that the Python model code runs successfully and writes simulation output. It is not intended to reproduce the manuscript model results.
+
+From the repository root, run:
+
+```bash
+mkdir -p outputs/models outputs/simulations
+python model/src/main.py 1 1 outputs/models outputs/simulations 10 1 7 train deep_depth
+```
+
+Expected output:
+
+- trained model files written to `outputs/models/`;
+- simulation CSV files written to `outputs/simulations/`.
+
+Expected runtime is approximately 5 minutes.
+
+### Full Python model runtime
+
+A full 120-epoch model training run for one parameter setting takes approximately 40 minutes on the test machine described above. Runtime scales with the number of lambda values, alpha values, seeds, tree sizes, and tree orders.
