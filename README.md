@@ -50,6 +50,7 @@ Place the downloaded files directly in:
 ```text
 analysis/data/raw_data/
 ```
+The de-identified data available on OSF serve as the real example dataset for the R analysis pipeline. The Python model demo does not require an external input dataset; it generates simulated task output internally.
 
 ## R Analysis Setup
 
