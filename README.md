@@ -1,6 +1,6 @@
 # Working Memory Planning Code
 
-This repository contains the analysis and computational modeling code for the working-memory planning manuscript.
+This repository contains the analysis and computational modeling code for Resource Rational Encoding of Reward Information During Planning.
 
 ## Overview
 
