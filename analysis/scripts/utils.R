@@ -116,17 +116,31 @@ calculate_path_rank_exp1_beh <- function(df) {
       rank4 = unlist(path_ranks_vector)[4]
     ) %>%
     dplyr::ungroup() %>%
+    dplyr::rowwise() %>%
     dplyr::mutate(
-      p_rank = dplyr::case_when(
-        node == 2 ~ rank1,
-        node == 3 ~ rank2,
-        node == 5 ~ rank3,
-        node == 6 ~ rank4,
-        node == 1 ~ pmin(rank1, rank2),
-        node == 4 ~ pmin(rank3, rank4),
-        TRUE ~ NA_real_
-      )
+      p_rank = {
+        node_value <- as.integer(node)
+        if (is.na(node_value)) {
+          NA_real_
+        } else if (node_value == 2) {
+          as.numeric(rank1)
+        } else if (node_value == 3) {
+          as.numeric(rank2)
+        } else if (node_value == 5) {
+          as.numeric(rank3)
+        } else if (node_value == 6) {
+          as.numeric(rank4)
+        } else if (node_value == 1) {
+          min(as.numeric(c(rank1, rank2)), na.rm = TRUE)
+        } else if (node_value == 4) {
+          min(as.numeric(c(rank3, rank4)), na.rm = TRUE)
+        } else {
+          NA_real_
+        }
+      }
     ) %>%
+    dplyr::ungroup() %>%
+    dplyr::filter(is.finite(p_rank)) %>%
     dplyr::select(subject, graph, node, condition, accuracy, p_rank) %>%
     dplyr::arrange(subject, graph, node, condition)
 }
@@ -181,17 +195,31 @@ calculate_path_rank_exp1_model <- function(df) {
       rank4 = unlist(path_ranks_vector)[4]
     ) %>%
     dplyr::ungroup() %>%
+    dplyr::rowwise() %>%
     dplyr::mutate(
-      p_rank = dplyr::case_when(
-        node == 2 ~ rank1,
-        node == 3 ~ rank2,
-        node == 5 ~ rank3,
-        node == 6 ~ rank4,
-        node == 1 ~ pmin(rank1, rank2),
-        node == 4 ~ pmin(rank3, rank4),
-        TRUE ~ NA_real_
-      )
+      p_rank = {
+        node_value <- as.integer(node)
+        if (is.na(node_value)) {
+          NA_real_
+        } else if (node_value == 2) {
+          as.numeric(rank1)
+        } else if (node_value == 3) {
+          as.numeric(rank2)
+        } else if (node_value == 5) {
+          as.numeric(rank3)
+        } else if (node_value == 6) {
+          as.numeric(rank4)
+        } else if (node_value == 1) {
+          min(as.numeric(c(rank1, rank2)), na.rm = TRUE)
+        } else if (node_value == 4) {
+          min(as.numeric(c(rank3, rank4)), na.rm = TRUE)
+        } else {
+          NA_real_
+        }
+      }
     ) %>%
+    dplyr::ungroup() %>%
+    dplyr::filter(is.finite(p_rank)) %>%
     dplyr::select(subject, graph, node, accuracy, condition, p_rank) %>%
     dplyr::arrange(graph, node, condition)
 }
@@ -230,17 +258,43 @@ calculate_path_rank_exp2_beh <- function(df) {
       rank9 = unlist(path_ranks_vector)[9]
     ) %>%
     dplyr::ungroup() %>%
+    dplyr::rowwise() %>%
     dplyr::mutate(
-      p_rank = dplyr::case_when(
-        node == 2 ~ rank1, node == 3 ~ rank2, node == 4 ~ rank3,
-        node == 6 ~ rank4, node == 7 ~ rank5, node == 8 ~ rank6,
-        node == 10 ~ rank7, node == 11 ~ rank8, node == 12 ~ rank9,
-        node == 1 ~ pmin(rank1, rank2, rank3),
-        node == 5 ~ pmin(rank4, rank5, rank6),
-        node == 9 ~ pmin(rank7, rank8, rank9),
-        TRUE ~ NA_real_
-      )
+      p_rank = {
+        node_value <- as.integer(node)
+        if (is.na(node_value)) {
+          NA_real_
+        } else if (node_value == 2) {
+          as.numeric(rank1)
+        } else if (node_value == 3) {
+          as.numeric(rank2)
+        } else if (node_value == 4) {
+          as.numeric(rank3)
+        } else if (node_value == 6) {
+          as.numeric(rank4)
+        } else if (node_value == 7) {
+          as.numeric(rank5)
+        } else if (node_value == 8) {
+          as.numeric(rank6)
+        } else if (node_value == 10) {
+          as.numeric(rank7)
+        } else if (node_value == 11) {
+          as.numeric(rank8)
+        } else if (node_value == 12) {
+          as.numeric(rank9)
+        } else if (node_value == 1) {
+          min(as.numeric(c(rank1, rank2, rank3)), na.rm = TRUE)
+        } else if (node_value == 5) {
+          min(as.numeric(c(rank4, rank5, rank6)), na.rm = TRUE)
+        } else if (node_value == 9) {
+          min(as.numeric(c(rank7, rank8, rank9)), na.rm = TRUE)
+        } else {
+          NA_real_
+        }
+      }
     ) %>%
+    dplyr::ungroup() %>%
+    dplyr::filter(is.finite(p_rank)) %>%
     dplyr::select(subject, graph, node, accuracy, condition, p_rank) %>%
     dplyr::arrange(subject, graph, node, condition)
 }
@@ -293,17 +347,43 @@ calculate_path_rank_exp2_model <- function(df) {
       rank9 = unlist(path_ranks_vector)[9]
     ) %>%
     dplyr::ungroup() %>%
+    dplyr::rowwise() %>%
     dplyr::mutate(
-      p_rank = dplyr::case_when(
-        node == 2 ~ rank1, node == 3 ~ rank2, node == 4 ~ rank3,
-        node == 6 ~ rank4, node == 7 ~ rank5, node == 8 ~ rank6,
-        node == 10 ~ rank7, node == 11 ~ rank8, node == 12 ~ rank9,
-        node == 1 ~ pmin(rank1, rank2, rank3),
-        node == 5 ~ pmin(rank4, rank5, rank6),
-        node == 9 ~ pmin(rank7, rank8, rank9),
-        TRUE ~ NA_real_
-      )
+      p_rank = {
+        node_value <- as.integer(node)
+        if (is.na(node_value)) {
+          NA_real_
+        } else if (node_value == 2) {
+          as.numeric(rank1)
+        } else if (node_value == 3) {
+          as.numeric(rank2)
+        } else if (node_value == 4) {
+          as.numeric(rank3)
+        } else if (node_value == 6) {
+          as.numeric(rank4)
+        } else if (node_value == 7) {
+          as.numeric(rank5)
+        } else if (node_value == 8) {
+          as.numeric(rank6)
+        } else if (node_value == 10) {
+          as.numeric(rank7)
+        } else if (node_value == 11) {
+          as.numeric(rank8)
+        } else if (node_value == 12) {
+          as.numeric(rank9)
+        } else if (node_value == 1) {
+          min(as.numeric(c(rank1, rank2, rank3)), na.rm = TRUE)
+        } else if (node_value == 5) {
+          min(as.numeric(c(rank4, rank5, rank6)), na.rm = TRUE)
+        } else if (node_value == 9) {
+          min(as.numeric(c(rank7, rank8, rank9)), na.rm = TRUE)
+        } else {
+          NA_real_
+        }
+      }
     ) %>%
+    dplyr::ungroup() %>%
+    dplyr::filter(is.finite(p_rank)) %>%
     dplyr::select(subject, graph, node, accuracy, condition, p_rank) %>%
     dplyr::arrange(graph, node, condition)
 }

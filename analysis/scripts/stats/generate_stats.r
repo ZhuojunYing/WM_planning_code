@@ -43,6 +43,25 @@ pval <- function(p) {
   if (p < .001) "p < .001" else glue("p = {str_sub(format(round(p, 3), nsmall=3), 2)}")
 }
 
+format_number <- function(x, digits = 3) {
+  if (is.na(x)) return("NA")
+  sprintf(paste0("%.", digits, "f"), x)
+}
+
+format_ci <- function(low, high, digits = 3) {
+  if (is.na(low) || is.na(high)) return("NA")
+  sprintf(
+    "[%s, %s]",
+    format_number(low, digits),
+    format_number(high, digits)
+  )
+}
+
+partial_eta_squared <- function(f_value, df_effect, df_error) {
+  if (any(is.na(c(f_value, df_effect, df_error)))) return(NA_real_)
+  (f_value * df_effect) / ((f_value * df_effect) + df_error)
+}
+
 # ------------------------------------------------------------------------------
 # Core Regression Wrapper
 # ------------------------------------------------------------------------------
@@ -146,6 +165,12 @@ write_model_separate <- function(model, name, data_type = "participants") {
   if (!"df" %in% names(coef_data)) {
     coef_data$df <- stats::df.residual(model)
   }
+  if (!"conf.low" %in% names(coef_data)) {
+    coef_data$conf.low <- NA_real_
+  }
+  if (!"conf.high" %in% names(coef_data)) {
+    coef_data$conf.high <- NA_real_
+  }
   
   base_dir <- analysis_path("stats", name)
   dir.create(base_dir, recursive = TRUE, showWarnings = FALSE)
@@ -163,14 +188,23 @@ write_model_separate <- function(model, name, data_type = "participants") {
     beta_tex <- sprintf("%.3f", row$estimate)
     p_tex <- format_p(row$p.value)
     df_tex <- if ("df" %in% names(row) && !is.na(row$df)) sprintf("%d", round(row$df)) else "NA"
+    ci_low_tex <- format_number(row$conf.low)
+    ci_high_tex <- format_number(row$conf.high)
+    ci_tex <- format_ci(row$conf.low, row$conf.high)
     
     beta_file <- file.path(base_dir, paste0(term_name, "_beta.tex"))
     p_file    <- file.path(base_dir, paste0(term_name, "_p.tex"))
     df_file   <- file.path(base_dir, paste0(term_name, "_df.tex"))
+    ci_low_file <- file.path(base_dir, paste0(term_name, "_ci_low.tex"))
+    ci_high_file <- file.path(base_dir, paste0(term_name, "_ci_high.tex"))
+    ci_file <- file.path(base_dir, paste0(term_name, "_ci.tex"))
     
     writeLines(beta_tex, beta_file)
     writeLines(p_tex, p_file)
     writeLines(df_tex, df_file)
+    writeLines(ci_low_tex, ci_low_file)
+    writeLines(ci_high_tex, ci_high_file)
+    writeLines(ci_tex, ci_file)
   }
 }
 
@@ -185,6 +219,12 @@ write_model <- function(model, name, data_type = "participants") {
   
   if (!"df" %in% names(coef_data)) {
     coef_data$df <- stats::df.residual(model)
+  }
+  if (!"conf.low" %in% names(coef_data)) {
+    coef_data$conf.low <- NA_real_
+  }
+  if (!"conf.high" %in% names(coef_data)) {
+    coef_data$conf.high <- NA_real_
   }
   
   base_dir <- analysis_path("stats", name)
@@ -205,13 +245,17 @@ write_model <- function(model, name, data_type = "participants") {
     row <- coef_data[i, ]
     df_value <- if ("df" %in% names(row)) row$df else NA_real_
     tex_output <- sprintf(
-      "$\\beta = %.3f$, %s, %s",
+      "$\\beta = %.3f$, 95\\%% CI %s, %s, %s",
       row$estimate,
+      format_ci(row$conf.low, row$conf.high),
       format_p(row$p.value),
       format_df(df_value)
     )
     
     writeLines(tex_output, file.path(base_dir, paste0(row$term, ".tex")))
+    writeLines(format_number(row$conf.low), file.path(base_dir, paste0(row$term, "_ci_low.tex")))
+    writeLines(format_number(row$conf.high), file.path(base_dir, paste0(row$term, "_ci_high.tex")))
+    writeLines(format_ci(row$conf.low, row$conf.high), file.path(base_dir, paste0(row$term, "_ci.tex")))
   }
   
   invisible(coef_data)
@@ -310,12 +354,22 @@ compare_adjacent_path_ranks <- function(data, y_var = "accuracy", folder_name, m
     
     # Format the isolated p-value and the full string
     p_exact_tex <- format_p(p_val)
+    partial_eta_sq <- partial_eta_squared(F_val, numDF, denDF)
+    partial_eta_tex <- format_number(partial_eta_sq)
     p_str <- if(is.na(p_val)) "ns" else if(p_val < .001) "p < .001" else sprintf("p = %s", p_exact_tex)
-    full_stat_tex <- sprintf("$F(%.0f, %.0f) = %.3f$, %s", numDF, denDF, F_val, p_str)
+    full_stat_tex <- sprintf(
+      "$F(%.0f, %.0f) = %.3f$, $\\eta_p^2 = %s$, %s",
+      numDF,
+      denDF,
+      F_val,
+      partial_eta_tex,
+      p_str
+    )
     
     # Write files
     writeLines(sprintf("%.3f", F_val), file.path(base_dir, paste0(prefix, "_F.tex")))
     writeLines(p_exact_tex, file.path(base_dir, paste0(prefix, "_p.tex"))) # Changed from _p_stars.tex
+    writeLines(partial_eta_tex, file.path(base_dir, paste0(prefix, "_partial_eta_sq.tex")))
     writeLines(full_stat_tex, file.path(base_dir, paste0(prefix, "_full_stat.tex")))
     
     cat(sprintf("  %d vs %d -> %s\n", rank_A, rank_B, full_stat_tex))
@@ -462,12 +516,12 @@ df_exp2_40n_beh <- prep_for_regression_40n(df_exp2_40n_beh)
 
 # 2. Run Main Regressions
 reg_formula <- accuracy ~ (scale(node_reward) + scale(node_reward^2) + scale(sibling_reward) + scale(sibling_reward^2) + scale(aunt_reward) + scale(parent_reward)) * condition
+reg_formula_40n <- accuracy ~ (scale(node_reward) + scale(node_reward^2) + scale(sibling_reward) + scale(sibling_reward^2) + scale(aunt_reward) + scale(preceding_sum_reward)) * condition
 
 df_exp1_model %>% regress(reg_formula, reference_level = "planning", add_random = FALSE, mixed = FALSE, logistic = TRUE) %>% write_model_separate("exp1_model") 
 fit_behavioral_recall_model(df_exp1_beh  ) %>% write_model_separate("exp1_beh") 
 df_exp2_model %>% regress(reg_formula, reference_level = "planning", add_random = FALSE, mixed = FALSE, logistic = TRUE) %>% write_model_separate("exp2_model") 
 fit_behavioral_recall_model(df_exp2_beh) %>% write_model_separate("exp2_beh") 
-reg_formula_40n <- accuracy ~ (scale(node_reward) + scale(node_reward^2) + scale(sibling_reward) + scale(sibling_reward^2) + scale(aunt_reward) + scale(preceding_sum_reward)) * condition
 
 fit_behavioral_recall_model_40n(df_exp2_40n_beh) %>% write_model_separate("exp2_40n_beh") 
 
@@ -487,6 +541,9 @@ df_exp2_40n_beh_rank <- calculate_path_rank_exp2_40n_beh(df_exp2_40n_beh) %>% mu
 
 df_exp1_model_rank %>% filter(condition == "planning") %>% regress(accuracy ~ path_rank, add_random = FALSE, mixed = FALSE, logistic = TRUE) %>% write_model("exp1_model_planning")  
 fit_behavioral_path_rank_model(df_exp1_beh_rank %>% filter(condition == "planning")) %>% write_model("exp1_beh_planning")
+df_exp2_model_rank %>% filter(condition == "planning") %>% regress(accuracy ~ path_rank, add_random = FALSE, mixed = FALSE, logistic = TRUE) %>% write_model("exp2_model_planning")  
+fit_behavioral_path_rank_model(df_exp2_beh_rank %>% filter(condition == "planning")) %>% write_model("exp2_beh_planning")
+fit_behavioral_path_rank_model(df_exp2_40n_beh_rank %>% filter(condition == "planning")) %>% write_model("exp2_40n_beh_planning")
 
 # Compare Adjacent Ranks
 compare_adjacent_path_ranks(df_exp1_beh_rank %>% filter(condition == "planning"), y_var = "accuracy", folder_name = "exp1_beh_planning", mixed = TRUE, data_type = "participants")
@@ -509,7 +566,7 @@ df_exp1_model_rank_preregistered <- calculate_path_rank_exp1_model(df_exp1_model
 
 df_exp1_model_rank_preregistered %>% filter(condition == "planning") %>% regress(accuracy ~ path_rank, add_random = FALSE, mixed = FALSE, logistic = TRUE) %>% write_model("exp1_model_preregistered_planning")  
 
-compare_adjacent_path_ranks(df_exp1_model_rank_preregistered %>% filter(condition == "planning"), y_var = "accuracy", folder_name = "exp1_model_preregistered_planning", mixed = FALSE, data_type = "model")
+# compare_adjacent_path_ranks(df_exp1_model_rank_preregistered %>% filter(condition == "planning"), y_var = "accuracy", folder_name = "exp1_model_preregistered_planning", mixed = FALSE, data_type = "model")
 df_exp1_model_preregistered %>% regress(reg_formula, reference_level = "planning", add_random = FALSE, mixed = FALSE, logistic = TRUE) %>% write_model_separate("exp1_model_preregistered") 
 
 
