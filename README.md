@@ -198,4 +198,4 @@ Expected runtime is approximately 5 minutes.
 
 ### Full Python model runtime
 
-A full 120-epoch model training run for one parameter setting takes approximately 40 minutes on the test machine described above. Runtime scales with the number of lambda values, alpha values, seeds, tree sizes, and tree orders.
+A full 320-epoch model training run for one parameter setting takes approximately 80 minutes on the test machine described above. Runtime scales with the number of lambda values, alpha values, seeds, tree sizes, and tree orders.
