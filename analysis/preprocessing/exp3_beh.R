@@ -1,3 +1,27 @@
+# Resolve the shared path configuration before loading project code.
+local({
+  starts <- c(Sys.getenv("WM_PLANNING_ROOT", ""),
+    dirname(sub("^--file=", "", grep("^--file=", commandArgs(), value = TRUE))),
+    dirname(vapply(sys.frames(), function(f) if (is.null(f$ofile)) "" else as.character(f$ofile), character(1))),
+    getwd())
+  found <- NULL
+  for (start in starts[nzchar(starts)]) {
+    directory <- normalizePath(path.expand(start), mustWork = FALSE)
+    repeat {
+      if (file.exists(file.path(directory, "project_paths.conf"))) {
+        found <- directory
+        break
+      }
+      parent <- dirname(directory)
+      if (identical(parent, directory)) break
+      directory <- parent
+    }
+    if (!is.null(found)) break
+  }
+  if (is.null(found)) stop("Set WM_PLANNING_ROOT to the absolute repository folder containing project_paths.conf.")
+  source(file.path(found, "analysis/scripts/project_paths.R"), local = FALSE)
+})
+
 # ==============================================================================
 # Experiment 3 Behavioral Preprocessing
 # Author: WM Planning manuscript team
@@ -13,7 +37,7 @@ library(dplyr)
 library(here)
 library(readr)
 
-source(here::here("analysis", "scripts", "utils.R"))
+source(project_path("analysis", "scripts", "figures", "utils.R"))
 
 # ==============================================================================
 # Data Loading
@@ -21,14 +45,45 @@ source(here::here("analysis", "scripts", "utils.R"))
 
 df_raw <- read_analysis_csv("data", "raw_data", "exp3_beh.csv")
 
+reward_columns <- paste0("n", seq_len(30), "_reward")
+required_columns <- c(
+  "subject", "graph", "tree_type", "show_arrow", "est_best_path",
+  "node", "actual_reward", "estimated_reward", "V",
+  "min_path_reward", "max_path_reward", reward_columns
+)
+missing_columns <- setdiff(required_columns, names(df_raw))
+
+if (length(missing_columns) > 0L) {
+  stop(
+    "Experiment 3 raw data are missing required columns: ",
+    paste(missing_columns, collapse = ", "),
+    call. = FALSE
+  )
+}
+
 # ==============================================================================
 # Data Preprocessing / Transformation
 # ==============================================================================
 
 df <- df_raw %>%
   convert_boolean_like_columns() %>%
-  dplyr::filter(show_arrow == TRUE) %>%
+  # The updated export has one action row followed by two recall rows per
+  # participant trial. The full reward vector and chosen path are repeated on
+  # the recall rows, so retaining only those rows preserves the historical
+  # two-row-per-trial processed-data structure without losing fitter inputs.
+  dplyr::filter(
+    show_arrow == TRUE,
+    !is.na(node),
+    !is.na(actual_reward),
+    !is.na(estimated_reward)
+  ) %>%
   dplyr::mutate(
+    condition = "planning",
+    est_best_path = trimws(as.character(est_best_path)),
+    dplyr::across(
+      dplyr::all_of(reward_columns),
+      ~ suppressWarnings(as.numeric(.x))
+    ),
     accuracy = ifelse(estimated_reward == actual_reward, 1, 0),
     correct_choice = ifelse((max_path_reward - V) < 0.1, 1, 0),
     norm_reward = (V - min_path_reward) / (max_path_reward - min_path_reward),
@@ -80,8 +135,9 @@ print_retention_summary(
 df_filtered <- df %>%
   dplyr::semi_join(kept_subjects_list, by = "subject") %>%
   dplyr::select(
-    subject, tree, order, tree_type, accuracy, correct_choice,
-    norm_reward, everything()
+    subject, graph, condition, tree, order, tree_type, est_best_path,
+    dplyr::all_of(reward_columns), accuracy, correct_choice, norm_reward,
+    everything()
   )
 
 # ==============================================================================

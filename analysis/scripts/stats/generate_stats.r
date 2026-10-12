@@ -1,3 +1,27 @@
+# Resolve the shared path configuration before loading project code.
+local({
+  starts <- c(Sys.getenv("WM_PLANNING_ROOT", ""),
+    dirname(sub("^--file=", "", grep("^--file=", commandArgs(), value = TRUE))),
+    dirname(vapply(sys.frames(), function(f) if (is.null(f$ofile)) "" else as.character(f$ofile), character(1))),
+    getwd())
+  found <- NULL
+  for (start in starts[nzchar(starts)]) {
+    directory <- normalizePath(path.expand(start), mustWork = FALSE)
+    repeat {
+      if (file.exists(file.path(directory, "project_paths.conf"))) {
+        found <- directory
+        break
+      }
+      parent <- dirname(directory)
+      if (identical(parent, directory)) break
+      directory <- parent
+    }
+    if (!is.null(found)) break
+  }
+  if (is.null(found)) stop("Set WM_PLANNING_ROOT to the absolute repository folder containing project_paths.conf.")
+  source(file.path(found, "analysis/scripts/project_paths.R"), local = FALSE)
+})
+
 # ==============================================================================
 # Script: Statistical Analysis & Modeling Exports
 # Description: Generates descriptive statistics, runs regressions and ANOVAs, 
@@ -15,7 +39,7 @@ library(lmerTest)
 library(broom.mixed)
 library(formula.tools)
 
-source(here::here("analysis", "scripts", "utils.R"))
+source(project_path("analysis", "scripts", "figures", "utils.R"))
 
 # ==============================================================================
 # Statistical Modeling Functions
@@ -383,6 +407,7 @@ compare_adjacent_path_ranks <- function(data, y_var = "accuracy", folder_name, m
 df_exp1_beh <- read_csv(analysis_path("data", "processed_data", "exp1_beh.csv"), show_col_types = FALSE)
 df_exp2_beh <- read_csv(analysis_path("data", "processed_data", "exp2_beh.csv"), show_col_types = FALSE)
 df_exp1_model <- read_csv(analysis_path("data", "processed_data", "exp1_model.csv"), show_col_types = FALSE)
+
 df_exp2_model <- read_csv(analysis_path("data", "processed_data", "exp2_model.csv"), show_col_types = FALSE)
 df_exp2_40n_beh <- read_csv(analysis_path("data", "processed_data", "exp2_40n_beh.csv"), show_col_types = FALSE)
 df_exp3_beh <- read_csv(analysis_path("data", "processed_data", "exp3_beh.csv"), show_col_types = FALSE)
@@ -570,6 +595,8 @@ df_exp1_model_rank_preregistered %>% filter(condition == "planning") %>% regress
 df_exp1_model_preregistered %>% regress(reg_formula, reference_level = "planning", add_random = FALSE, mixed = FALSE, logistic = TRUE) %>% write_model_separate("exp1_model_preregistered") 
 
 
-sink("analysis/sessionInfo.txt")
+session_info_path <- analysis_path("logs", "stats_sessionInfo.txt")
+ensure_parent_directory(session_info_path)
+sink(session_info_path)
 sessionInfo()
 sink()

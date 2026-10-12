@@ -1,201 +1,208 @@
-# Working Memory Planning Code
+# Working Memory Planning
 
-This repository contains the analysis and computational modeling code for Resource Rational Encoding of Reward Information During Planning.
+Code for *Resource Rational Encoding of Reward Information During Planning*.
+Run the commands below from the repository root.
 
-## Overview
+## Workflows
 
-### Analysis
+The Python scripts train models, fit participant parameters, generate fitted
+simulations, and perform parameter recovery. The R scripts preprocess behavior,
+fit statistical analyses, and export tables, in-text statistics, and figures.
 
-The `analysis/` directory contains the R pipeline for cleaning behavioral and model-output CSV files, generating manuscript figures, and running statistical models. Preprocessing scripts write standardized datasets to `analysis/data/processed_data/`; figure scripts write PDFs to `analysis/figures/`; stats scripts write model summaries to `analysis/stats/`.
+To reproduce results, download the inputs, preprocess behavior, obtain matching
+fit/recovery outputs, then generate statistics before plots. Fit/recovery
+outputs can be downloaded or generated; generating them requires matching
+trained weights. Bash/Slurm wrappers are not required for the Python modules.
 
-### Model
+## Storage
 
-The `model/` directory contains the Python implementation of the variational recurrent neural network model, training loop, simulation code, and Python package requirements.
+Configure locations in `project_paths.conf`. `ProjectRoot: .` uses this
+repository's directory; an absolute path or the `WM_PLANNING_ROOT` environment
+variable can also be used. `StorageRoot` controls generated model artifacts.
+The analysis runners use the current R installation and `python3`; set
+`WM_PLANNING_PYTHON` to select a different Python executable.
 
-## Repository Structure
+## Data download
 
-```text
-.
-├── analysis/
-│   ├── data/
-│   │   ├── raw_data/
-│   │   └── processed_data/
-│   ├── preprocessing/
-│   ├── scripts/
-│   │   ├── figures/
-│   │   └── stats/
-│   ├── figures/
-│   ├── stats/
-│   └── requirements.R
-├── model/
-│   ├── requirements.txt
-│   └── src/
-│       ├── main.py
-│       ├── model.py
-│       ├── train.py
-│       ├── simulate.py
-│       ├── config.py
-│       └── helper.py
-└── README.md
-```
+Download the data from [OSF](https://osf.io/38gqz) and extract into:
 
-## Data Download
+| Input | Location |
+| --- | --- |
+| Raw behavior | `analysis/data/raw_beh_data/exp1_beh.csv`, `exp2_beh.csv`, `exp3_beh.csv`, `exp2_40n_beh.csv` |
+| Fitted simulations | `analysis/data/model_simulations/exp{n}_{model}.csv` |
+| Selected parameter fits | `analysis/data/model_simulations/exp{n}_{model}_parameters.csv` |
+| Recovery results and configuration | `analysis/data/model_simulations/recovery_results/exp{n}_full_recovery.csv` and `.json` |
 
-Download the raw data from OSF:
+For Exp1 and Exp2, model names are `full`, `exposure`, `simultaneous`, and
+`independent`; Exp3 uses `full`. `simulation_inputs.csv` records the matching
+model configurations. `ParameterFits` and `RecoveryInputs` in
+`project_paths.conf` control the fit and recovery locations. Keep participant
+IDs consistent across behavior, simulations, and selected fits. 
 
-https://osf.io/38gqz/files/osfstorage
+## Python and R environments
 
-Place the downloaded files directly in:
-
-```text
-analysis/data/raw_data/
-```
-The de-identified data available on OSF serve as the real example dataset for the R analysis pipeline. The Python model demo does not require an external input dataset; it generates simulated task output internally.
-
-## R Analysis Setup
-
-From the repository root, install the R dependencies with:
-
-```r
-source("analysis/requirements.R")
-```
-
-The R code assumes this layout: the repository root contains `analysis/`, and analysis paths are built by `analysis/scripts/utils.R` through `analysis_path <- function(...) here::here("analysis", ...)`. Run R from the repository root, or open the repository root as the RStudio project/root. If you reorganize the repository, update that `analysis_path()` helper once so it points to the correct `analysis/` directory.
-
-## R Analysis Pipeline
-
-Run scripts in this order:
-
-1. Preprocess raw data. This script runs all preprocessing scripts:
-
-```r
-source("analysis/preprocessing/run_all_preprocessing.R")
-```
-
-2. Generate figures. This script runs all figure scripts:
-
-```r
-source("analysis/scripts/figures/run_all_figures.R")
-```
-
-3. Run statistics:
-
-```r
-source("analysis/scripts/stats/generate_stats.r")
-```
-
-## Python Model Setup
-
-Create and activate a virtual environment, then install dependencies:
+Install Python and R dependencies in your chosen environments:
 
 ```bash
-cd model
-python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-cd ..
+python -m pip install -r requirements.txt
+Rscript --vanilla analysis/requirements.R
+Rscript --vanilla -e 'install.packages(c("mgcv", "jsonlite"), repos="https://cloud.r-project.org")'
 ```
-
-## Python Model Usage
-
-Command format:
-
-```bash
-python model/src/main.py <lambda_values> <alpha_values> <model_dir> <simulation_dir> <epochs> <seed> <tree_size> <mode> <tree_order>
-```
-
-Arguments:
-
-- `<lambda_values>`: comma-separated information-cost weights, for example `0.1,1,10`.
-- `<alpha_values>`: comma-separated reconstruction-loss weights.
-- `<model_dir>`: directory for trained model weights.
-- `<simulation_dir>`: directory for simulation CSV outputs.
-- `<epochs>`: number of training epochs, for example `120`.
-- `<seed>`: random seed.
-- `<tree_size>`: root-inclusive tree size: `3`, `7`, `13`, `31`, or `40`.
-- `<mode>`: `train` to train then simulate, or another mode value to skip training and run simulation from existing weights.
-- `<tree_order>`: tree topology/order label. For 31-node simulations use `deep_breadth`, `deep_depth`, `wide_breadth`, or `wide_depth`; for smaller trees this argument is still required but does not change the tree.
-
-The action/reward loss uses a default weight of `1.0`. The information-cost,
-reconstruction, and action/reward weights are scaled internally by the model's
-tree-size-specific parameter scaler.
-
-Example:
-
-```bash
-python model/src/main.py 1 1 outputs/weights outputs/simulations 120 1 7 train deep_depth
-```
-
-## Outputs
-
-- Cleaned analysis data: `analysis/data/processed_data/`
-- Manuscript figures: `analysis/figures/`
-- Statistical summaries: `analysis/stats/`
-- Model weights: the `<model_dir>` passed to `model/src/main.py`
-- Model simulations: the `<simulation_dir>` passed to `model/src/main.py`
-
-## Expected runtimes
-
-Runtimes are approximate and were tested on a MacBook Pro, 13-inch, M2, 2022, running macOS Monterey 12.4 with 8 GB memory. No non-standard hardware is required.
-
-### Installation
-
-The R analysis code was tested using R 4.3.0. The Python model code was tested using Python 3.12.3.
-
 Assuming R and Python are already installed, installing the R dependencies typically takes approximately 10 minutes, and installing the Python dependencies typically takes approximately 20 minutes.
 
-To install the R dependencies from the repository root, run:
 
-```r
-source("analysis/requirements.R")
+## Python model usage
+
+### Train models
+
+The training interface is:
+
+```text
+python -m MODULE LAMBDA_VALUES ALPHA_VALUES WEIGHT_DIR SIMULATION_DIR \
+  EPOCHS SEED TREE_SIZE train TREE_TYPE [SIMULATION_TRIALS] [options]
 ```
 
-To install the Python dependencies, run:
+`default` selects the configured directories. Training takes comma-separated
+lambda and **alpha** lists and evaluates their Cartesian product. For a
+lambda/rho grid, train each pair using `alpha = lambda * rho`.
+
+Example: one full-model planning parameter pair for a 7-node tree:
 
 ```bash
-cd model
-python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-cd ..
+python -m model.src.main_vae.main \
+  '0.01' '0.001' default default 320 1 7 train standard 2000 \
+  --nonlinear-scale --rnn-units 128 --reconstruction-hidden-units 128 \
+  --reconstruction-loss-scope final_timestep --max-action-gradient-scale 1 \
+  --final-learning-rate 0.0003 \
+  --late-lr-plateau-start-epoch 200 --late-lr-plateau-end-epoch 300
 ```
 
-### R analysis pipeline
+Use tree size `13` for Exp2. For Exp3 use `31`, train each of `deep_breadth`,
+`deep_depth`, `wide_breadth`, and `wide_depth`, and add
+`--action-entropy-bonus 0.05` for the released configuration. Repeat for all
+parameter cells and seeds needed by fitting.
 
-The de-identified raw data available on OSF serve as the real example dataset for running the R analysis pipeline. After the raw data have been downloaded from OSF and placed in `analysis/data/raw_data/`, the expected runtimes are:
+Variant training modules are
+`model.src.alternative_models.simultaneous_channel.main` and
+`model.src.alternative_models.independent_channel.main`. The independent model
+uses `--rnn-units 8 --latent-dim 1 --channel-kl-aggregation sum
+--channel-kl-time-weighting remaining_steps`. Full-model exposure training uses
+alpha `1` and `--condition exposure --no-critic-loss`.
 
-- Preprocessing: approximately 5 minutes.
-- Figure generation: approximately 10 minutes.
-- Statistical analyses: approximately 5 minutes.
-- Full R analysis pipeline: approximately 20 minutes.
-
-To run the full R analysis pipeline from the repository root, run:
-
-```r
-source("analysis/preprocessing/run_all_preprocessing.R")
-source("analysis/scripts/figures/run_all_figures.R")
-source("analysis/scripts/stats/generate_stats.r")
-```
+Training generates task rewards internally, saves weights, and runs grid
+simulations afterward. Architecture, loss, and schedule settings must match
+those used for fitting. See `model/src/main_vae/config.py` for training options.
 
 
-### Python model demo run
+### Fit participants and generate fitted simulations
 
-This short demo checks that the Python model code runs successfully and writes simulation output. It is not intended to reproduce the manuscript model results.
-
-From the repository root, run:
+Fitters select parameters from trained grid cells; they do not train missing
+weights. Example matching the single pair above:
 
 ```bash
-mkdir -p outputs/models outputs/simulations
-python model/src/main.py 1 1 outputs/models outputs/simulations 10 1 7 train deep_depth
+python -m model.src.main_vae.fit_participant_parameters \
+  7 '0.01' '0.1' --rho --seed-values '1' \
+  --behavior-csv analysis/data/processed_data/exp1_beh_new.csv \
+  --condition planning --mc-samples 1 --batch-size 128 \
+  --reward-nll-scale 0.5 --model-epochs 320 \
+  --nonlinear-scale --rnn-units 128 --reconstruction-hidden-units 128 \
+  --reconstruction-loss-scope final_timestep --max-action-gradient-scale 1 \
+  --final-learning-rate 0.0003 \
+  --late-lr-plateau-start-epoch 200 --late-lr-plateau-end-epoch 300 \
+  --simulation-trials-per-seed 100 --simulation-random-seed 2027 \
+  --skip-fitted-plots
 ```
 
-Expected output:
+With `--rho`, the third positional argument is alpha/lambda; otherwise it is
+alpha. Use tree `13` and `exp2_beh_new.csv` for Exp2. Expand the grids and seed
+list after training the corresponding weights. For exposure fits, omit
+`--rho`, pass alpha `1`, and use `--condition exposure --no-critic-loss
+--reward-nll-scale 1`. The 7-/13-node fitter saves parameter fits and fitted
+simulations. `--skip-fitted-plots` leaves figure generation to the R workflow.
 
-- trained model files written to `outputs/models/`;
-- simulation CSV files written to `outputs/simulations/`.
+Use the corresponding variant fitting modules for alternative models:
 
-Expected runtime is approximately 5 minutes.
+```bash
+python -m model.src.alternative_models.simultaneous_channel.fit_participant_parameters --help
+python -m model.src.alternative_models.independent_channel.fit_participant_parameters --help
+```
 
-### Full Python model runtime
+For Exp3, use `model.src.main_vae.fit_participant_parameters_31` with positional
+arguments `31 LAMBDA_VALUES ALPHA_OR_RHO_VALUES`, `--rho` when appropriate,
+`--behavior-csv analysis/data/processed_data/exp3_beh.csv`, and matching trained
+model options. Then simulate the completed selected-fit CSV:
 
-A full 320-epoch model training run for one parameter setting takes approximately 80 minutes on the test machine described above. Runtime scales with the number of lambda values, alpha values, seeds, tree sizes, and tree orders.
+```bash
+python -m model.src.main_vae.simulate_fitted_participants_31 \
+  --fit-csv /path/to/participant_parameter_fits_31_CONFIG.csv \
+  --simulation-seeds '1,2,3,4,5' --trials-per-seed-tree 25 \
+  --batch-size 128 --simulation-random-seed 2027
+```
+
+For parameter recovery, `model.src.main_vae.parameter_recovery` generates
+synthetic responses with known parameters and refits them. Inspect its options:
+
+```bash
+python -m model.src.main_vae.fit_participant_parameters --help
+python -m model.src.main_vae.fit_participant_parameters_31 --help
+python -m model.src.main_vae.parameter_recovery --help
+```
+
+## R setup and analysis
+
+Process the raw behavior, fit the exposure-memory mixture, then generate
+statistics and plots:
+
+```bash
+Rscript --vanilla analysis/preprocessing/run_all_preprocessing.R
+
+for experiment in exp1 exp2; do
+  python -m model.src.mixture_model.fit_exposure_memory_mixture "$experiment"
+done
+
+Rscript --vanilla analysis/scripts/stats/generate_tables.r
+Rscript --vanilla analysis/scripts/figures/generate_all_plots.r
+```
+
+Preprocessing runs only the four behavioral scripts and creates
+`exp1_beh_new.csv`, `exp2_beh_new.csv`, `exp3_beh.csv`, and `exp2_40n_beh.csv`
+in `analysis/data/processed_data/`. Final fitted simulations are read directly.
+The mixture fitter and statistics runner use
+`analysis/data/model_simulations/exp1_exposure_memory_mixture.csv` and
+`exp2_exposure_memory_mixture.csv` (the configured `ParameterFits` folder).
+
+
+`generate_tables.r` first fits all selected analyses, then exports tables and
+in-text statistics. 
+
+Outputs are organized under `analysis/results/`:
+
+- `stats/fitted/` and `tests/`: saved statistical results.
+- `tables/` and `intext_stats/`: LaTeX tables and text fragments.
+- `figures/`: experiment-specific plot folders.
+- `logs/`: per-step output and error logs.
+
+To export existing results without refitting:
+
+```bash
+Rscript --vanilla analysis/scripts/stats/fitted/export_tables.R \
+  --table-set all --experiments exp1,exp2,exp3
+python3 analysis/scripts/stats/fitted/export_intext_stats.py \
+  --experiments exp1,exp2,exp3
+```
+
+Processed CSVs need not be downloaded. Selected parameter fits and recovery
+outputs can be downloaded **or generated** using the model scripts above.
+
+## Approximate runtimes
+
+| Task | Reported runtime |
+| --- | --- |
+| Behavioral preprocessing | 5 minutes |
+| Figures | 30 minutes |
+| Statistics excluding the current `glmer` analyses | 20 minutes |
+| `glmer` analyses | Approximately 5 hours per experiment |
+| Model training | 100 minutes per 320-epoch model setting (original report) |
+
+These are approximate reports, not newly measured benchmarks. Runtime depends on hardware, dataset size, parameter-grid
+size, seeds, tree sizes, and tree orders.

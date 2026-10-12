@@ -1,3 +1,27 @@
+# Resolve the shared path configuration before loading project code.
+local({
+  starts <- c(Sys.getenv("WM_PLANNING_ROOT", ""),
+    dirname(sub("^--file=", "", grep("^--file=", commandArgs(), value = TRUE))),
+    dirname(vapply(sys.frames(), function(f) if (is.null(f$ofile)) "" else as.character(f$ofile), character(1))),
+    getwd())
+  found <- NULL
+  for (start in starts[nzchar(starts)]) {
+    directory <- normalizePath(path.expand(start), mustWork = FALSE)
+    repeat {
+      if (file.exists(file.path(directory, "project_paths.conf"))) {
+        found <- directory
+        break
+      }
+      parent <- dirname(directory)
+      if (identical(parent, directory)) break
+      directory <- parent
+    }
+    if (!is.null(found)) break
+  }
+  if (is.null(found)) stop("Set WM_PLANNING_ROOT to the absolute repository folder containing project_paths.conf.")
+  source(file.path(found, "analysis/scripts/project_paths.R"), local = FALSE)
+})
+
 # ==============================================================================
 # Experiment 1 Behavioral Preprocessing
 # Author: WM Planning manuscript team
@@ -13,7 +37,7 @@ library(dplyr)
 library(here)
 library(readr)
 
-source(here::here("analysis", "scripts", "utils.R"))
+source(project_path("analysis", "scripts", "figures", "utils.R"))
 
 # ==============================================================================
 # Data Loading
@@ -58,7 +82,7 @@ subject_significance <- df %>%
   dplyr::mutate(
     p_val_acc = ifelse(
       n_trials_acc > 0,
-      binom.test(n_correct_acc, n_trials_acc, p = 1 / 9, alternative = "greater")$p.value,
+      binom.test(n_correct_acc, n_trials_acc, p = 1 / 11, alternative = "greater")$p.value,
       1
     ),
     p_val_choice_plan = ifelse(
@@ -90,14 +114,4 @@ df_clean <- df %>%
 # Saving Outputs
 # ==============================================================================
 
-write_analysis_csv(df_clean, "data", "processed_data", "exp1_beh.csv")
-
-
-print(max(df$subject))
-df_clean <- df_clean %>% mutate(
-  parent_reward = ifelse(is_leaf == TRUE, parent_reward, 0),
-  aunt_reward = ifelse(is_leaf == TRUE, aunt_reward, 0),
-)
-print(max(df_clean$subject))
-model <- lmer( accuracy ~ (scale(node_reward) + scale(node_reward^2) + scale(sibling_reward) + scale(sibling_reward^2) + scale(aunt_reward) + scale(parent_reward))   + ( 1 | subject), data = df_clean %>% filter(condition == "planning")   )
-summary(model)
+write_analysis_csv(df_clean, "data", "processed_data", "exp1_beh_new.csv")

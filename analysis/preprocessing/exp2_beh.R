@@ -1,3 +1,27 @@
+# Resolve the shared path configuration before loading project code.
+local({
+  starts <- c(Sys.getenv("WM_PLANNING_ROOT", ""),
+    dirname(sub("^--file=", "", grep("^--file=", commandArgs(), value = TRUE))),
+    dirname(vapply(sys.frames(), function(f) if (is.null(f$ofile)) "" else as.character(f$ofile), character(1))),
+    getwd())
+  found <- NULL
+  for (start in starts[nzchar(starts)]) {
+    directory <- normalizePath(path.expand(start), mustWork = FALSE)
+    repeat {
+      if (file.exists(file.path(directory, "project_paths.conf"))) {
+        found <- directory
+        break
+      }
+      parent <- dirname(directory)
+      if (identical(parent, directory)) break
+      directory <- parent
+    }
+    if (!is.null(found)) break
+  }
+  if (is.null(found)) stop("Set WM_PLANNING_ROOT to the absolute repository folder containing project_paths.conf.")
+  source(file.path(found, "analysis/scripts/project_paths.R"), local = FALSE)
+})
+
 # ==============================================================================
 # Experiment 2 Behavioral Preprocessing
 # Author: WM Planning manuscript team
@@ -13,13 +37,28 @@ library(dplyr)
 library(here)
 library(readr)
 
-source(here::here("analysis", "scripts", "utils.R"))
+source(project_path("analysis", "scripts", "figures", "utils.R"))
 
 # ==============================================================================
 # Data Loading
 # ==============================================================================
 
-df_raw <- read_analysis_csv("data", "raw_data", "exp2_beh.csv")
+df_raw <- readr::read_csv(
+  file.path(RAW_DATA_DIR, "exp2_beh.csv"),
+  show_col_types = FALSE
+)
+
+required_raw_columns <- c("est_best_path")
+missing_raw_columns <- setdiff(required_raw_columns, names(df_raw))
+if (length(missing_raw_columns) > 0L) {
+  stop(
+    sprintf(
+      "Experiment 2 raw behavioral data are missing required columns: %s",
+      paste(missing_raw_columns, collapse = ", ")
+    ),
+    call. = FALSE
+  )
+}
 
 # ==============================================================================
 # Data Preprocessing / Transformation
@@ -28,6 +67,13 @@ df_raw <- read_analysis_csv("data", "raw_data", "exp2_beh.csv")
 df <- df_raw %>%
   convert_true_false_strings() %>%
   dplyr::mutate(
+    est_best_path = trimws(as.character(est_best_path)),
+    est_best_path = dplyr::if_else(
+      is.na(est_best_path) |
+        est_best_path %in% c("", "None", "None, None, None"),
+      NA_character_,
+      est_best_path
+    ),
     is_leaf = node %in% c(2, 3, 4, 6, 7, 8, 10, 11, 12),
     condition = ifelse(show_arrow == FALSE, "exposure", "planning"),
     accuracy = ifelse(abs(actual_reward - estimated_reward) < 1, 1, 0),
@@ -36,7 +82,7 @@ df <- df_raw %>%
     parent_reward = path_reward - actual_reward
   ) %>%
   dplyr::select(
-    subject, condition,  accuracy, correct_choice,
+    subject, condition, est_best_path, accuracy, correct_choice,
     norm_reward, parent_reward, everything()
   )
 
@@ -57,7 +103,7 @@ subject_significance <- df %>%
   dplyr::mutate(
     p_val_acc = ifelse(
       n_trials_acc > 0,
-      binom.test(n_correct_acc, n_trials_acc, p = 1 / 9, alternative = "greater")$p.value,
+      binom.test(n_correct_acc, n_trials_acc, p = 1 / 11, alternative = "greater")$p.value,
       1
     ),
     p_val_plan = ifelse(
@@ -86,4 +132,10 @@ df_clean <- df %>%
 # Saving Outputs
 # ==============================================================================
 
-write_analysis_csv(df_clean, "data", "processed_data", "exp2_beh.csv")
+processed_output_path <- file.path(PROCESSED_DATA_DIR, "exp2_beh_new.csv")
+dir.create(
+  dirname(processed_output_path),
+  recursive = TRUE,
+  showWarnings = FALSE
+)
+readr::write_csv(df_clean, processed_output_path)
